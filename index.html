@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SafeText: Scam Message Detector</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#f5f7fb; --card:#ffffff; --ink:#0f172a; --muted:#64748b; --line:#e2e8f0;
+    --brand:#2446d8; --brand2:#1b34a8;
+    --safe:#15803d; --safe-bg:#dcfce7;
+    --warn:#b45309; --warn-bg:#fef3c7;
+    --bad:#b91c1c; --bad-bg:#fee2e2;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Inter,system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--ink);line-height:1.5}
+  .wrap{max-width:720px;margin:0 auto;padding:28px 18px 60px}
+  header{display:flex;align-items:center;gap:12px;margin-bottom:6px}
+  .logo{width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,var(--brand),#5b7cff);display:grid;place-items:center;flex:none}
+  h1{font-size:26px;margin:0;letter-spacing:-.02em}
+  .tag{color:var(--muted);margin:4px 0 22px;font-size:15px}
+  .pill{display:inline-block;font-size:12px;font-weight:600;background:#e8edff;color:var(--brand);padding:3px 10px;border-radius:999px;margin-left:6px;vertical-align:middle}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:0 1px 2px rgba(15,23,42,.04)}
+  label{font-weight:600;font-size:14px;display:block;margin-bottom:8px}
+  textarea{width:100%;min-height:130px;border:1.5px solid var(--line);border-radius:12px;padding:14px;font:inherit;font-size:16px;resize:vertical;background:#fbfcfe}
+  textarea:focus{outline:none;border-color:var(--brand);background:#fff}
+  .row{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap}
+  button{font:inherit;cursor:pointer;border:none;border-radius:12px}
+  .primary{background:var(--brand);color:#fff;font-weight:700;padding:13px 22px;font-size:16px;flex:1;min-width:180px}
+  .primary:hover{background:var(--brand2)}
+  .primary:disabled{opacity:.6;cursor:wait}
+  .ghost{background:#fff;border:1.5px solid var(--line);color:var(--ink);padding:12px 16px;font-weight:600}
+  .examples{margin-top:18px}
+  .examples h3{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 10px}
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{background:#fff;border:1.5px solid var(--line);padding:8px 12px;border-radius:999px;font-size:14px;font-weight:500}
+  .chip:hover{border-color:var(--brand);color:var(--brand)}
+  #result{margin-top:18px;display:none}
+  .verdict{display:flex;align-items:center;gap:16px;padding:18px;border-radius:16px}
+  .score{width:84px;height:84px;border-radius:50%;display:grid;place-items:center;font-size:26px;font-weight:800;background:#fff;flex:none;border:6px solid currentColor}
+  .verdict h2{margin:0;font-size:22px}
+  .verdict p{margin:2px 0 0;font-size:15px}
+  .v-bad{background:var(--bad-bg);color:var(--bad)}
+  .v-warn{background:var(--warn-bg);color:var(--warn)}
+  .v-safe{background:var(--safe-bg);color:var(--safe)}
+  .section{margin-top:18px}
+  .section h3{font-size:15px;margin:0 0 8px}
+  ul.flags{list-style:none;padding:0;margin:0;display:grid;gap:8px}
+  ul.flags li{background:#f8fafc;border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-size:15px}
+  ul.flags li b{display:block}
+  ul.flags li span{color:var(--muted);font-size:14px}
+  ol.advice{margin:0;padding-left:20px}
+  ol.advice li{margin:4px 0}
+  .meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+  .meta span{font-size:13px;background:#f1f5f9;border-radius:8px;padding:4px 10px;color:#334155}
+  .note{font-size:13px;color:var(--muted);margin-top:14px}
+  .loading{display:flex;align-items:center;gap:10px;color:var(--muted);padding:16px 4px}
+  .spin{width:20px;height:20px;border:3px solid var(--line);border-top-color:var(--brand);border-radius:50%;animation:s 0.8s linear infinite}
+  @keyframes s{to{transform:rotate(360deg)}}
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:22px}
+  .stat{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;text-align:center}
+  .stat b{display:block;font-size:20px;color:var(--brand)}
+  .stat span{font-size:12px;color:var(--muted)}
+  footer{margin-top:28px;text-align:center;color:var(--muted);font-size:13px}
+  .err{background:var(--warn-bg);color:var(--warn);padding:12px;border-radius:12px;font-size:14px;margin-top:12px;display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6l8-4z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></svg>
+    </div>
+    <div><h1>SafeText <span class="pill">EU</span></h1></div>
+  </header>
+  <p class="tag">Paste a suspicious text message and find out in seconds if it's a scam, and why. Works in any European language.</p>
+
+  <div class="card">
+    <label for="msg">Message to check</label>
+    <textarea id="msg" placeholder="e.g. Your parcel is on hold. Pay €1.99 customs fee: http://..."></textarea>
+    <div class="row">
+      <button class="primary" id="go">Check this message</button>
+      <button class="ghost" id="clear">Clear</button>
+    </div>
+    <div class="err" id="err"></div>
+
+    <div class="examples">
+      <h3>Try an example</h3>
+      <div class="chips" id="chips"></div>
+    </div>
+  </div>
+
+  <div id="result" class="card"></div>
+
+  <div class="stats">
+    <div class="stat"><b>1 in 4</b><span>people in the EU tricked by scam messages (FRA, 2026)</span></div>
+    <div class="stat"><b>10×</b><span>rise in text-message phishing in a year (BioCatch, 2025)</span></div>
+    <div class="stat"><b>Any</b><span>EU language understood</span></div>
+  </div>
+
+  <footer>SafeText · Built for the Veritas AI Hackathon 2026<br>Never click links or share codes from messages you're unsure about.</footer>
+</div>
+
+<script>
+const EXAMPLES = [
+  {label:"📦 Parcel fee", text:"PostNord: Your parcel SE48291 is on hold due to unpaid customs fee (€1.99). Pay within 24h or it will be returned: https://postnord-delivery-se.top/pay"},
+  {label:"🏦 Bank alert", text:"ING: We detected an unusual login from a new device. Your account will be blocked today. Verify your identity now: ing-secure-verify.com/nl"},
+  {label:"👩 Hi Mum", text:"Hi Mum, this is my new number, my phone broke 😩 Can you do me a favour? I need to pay a bill urgently today, I'll pay you back tomorrow x"},
+  {label:"🇫🇷 French tax", text:"impots.gouv: Vous avez droit à un remboursement de 287,40€. Veuillez compléter votre demande avant le 18/11: https://remboursement-impots-fr.info"},
+  {label:"🇩🇪 Bank (DE)", text:"Sparkasse: Ihr pushTAN-Verfahren läuft ab. Bitte aktualisieren Sie es sofort, sonst wird Ihr Konto gesperrt: sparkasse-pushtan-update.de"},
+  {label:"✅ Real reminder", text:"Hi Sara, reminder of your dental appointment tomorrow (Fri) at 10:30 at Smile Clinic. Reply C to confirm or call us to reschedule."}
+];
+
+const $ = id => document.getElementById(id);
+const chips = $("chips");
+EXAMPLES.forEach(e=>{
+  const b=document.createElement("button");
+  b.className="chip"; b.textContent=e.label;
+  b.onclick=()=>{ $("msg").value=e.text; $("msg").focus(); };
+  chips.appendChild(b);
+});
+$("clear").onclick=()=>{ $("msg").value=""; $("result").style.display="none"; $("err").style.display="none"; };
+
+let samplePromise = (window.claude && window.claude.use) ? window.claude.use("sample") : Promise.resolve(null);
+
+const PROMPT = (msg)=>`You are SafeText, an expert fraud analyst specialising in SMS, WhatsApp and messaging scams targeting people in Europe (EU, UK, Nordics). Analyse the message below.
+
+Consider: impersonation of real brands (banks, postal/delivery services, tax offices, telecoms, streaming), urgency or threats, requests for money, codes, passwords or personal data, suspicious links (look-alike domains, odd TLDs like .top .info .xyz, URL shorteners), "Hi Mum/Dad" family impersonation, prize/refund lures, investment/crypto offers, wrong-number romance openers, grammar oddities. Also recognise genuine messages (appointment reminders, real OTPs with no request to share them).
+
+Respond ONLY with JSON in this exact shape:
+{
+ "risk_score": integer 0-100,
+ "verdict": "Scam" | "Suspicious" | "Looks safe",
+ "scam_type": short name e.g. "Fake delivery fee", "Bank impersonation", "Family impersonation (Hi Mum)", or "None",
+ "impersonating": brand or person being impersonated, or "None",
+ "language": language of the message in English,
+ "summary": one plain-English sentence explaining the verdict for a non-technical person,
+ "red_flags": [ {"flag": short title, "detail": one short sentence quoting or pointing to the exact part of the message} ] (empty if none; max 5),
+ "what_to_do": [ 2-4 short, practical steps, mentioning the relevant European reporting route where it fits, e.g. forward to 7726 in the UK, report to the bank via its official app ]
+}
+
+Message:
+"""${msg}"""`;
+
+function heuristic(msg){
+  const t=msg.toLowerCase(); const flags=[]; let s=5;
+  const add=(c,f,d,p)=>{ if(c){flags.push({flag:f,detail:d}); s+=p;} };
+  add(/https?:\/\/|www\.|\.(top|info|xyz|click|live|shop)\b|bit\.ly/.test(t),"Contains a link","Scammers use links to steal card details or logins.",30);
+  add(/urgent|immediately|today|24h|within|sofort|blocked|gesperrt|bloqu|suspend/.test(t),"Urgency or threat","Pressure to act fast is a classic scam tactic.",20);
+  add(/pay|fee|€|£|remboursement|refund|bill|payment|zahlen/.test(t),"Asks for money or offers a refund","Unexpected payment requests or refunds are a red flag.",20);
+  add(/verify|verif|password|code|pin|tan|login|identity/.test(t),"Asks you to verify details","Real banks never ask you to verify via a text link.",20);
+  add(/new number|phone broke|hi mum|hi dad|hej mamma/.test(t),"Family impersonation","'Hi Mum' scams pretend to be your child on a new number.",35);
+  s=Math.min(98,s);
+  const verdict = s>=60?"Scam":s>=30?"Suspicious":"Looks safe";
+  return {risk_score:s,verdict,scam_type:flags.length?"Possible scam":"None",impersonating:"Unknown",language:"Unknown",
+    summary: verdict==="Looks safe"?"No common scam signals found, but stay careful.":"This message shows common scam warning signs.",
+    red_flags:flags.slice(0,5),
+    what_to_do: verdict==="Looks safe"?["If unsure, contact the sender through their official website or app."]:["Don't click the link or reply.","Contact the company through its official app or website.","Report and delete the message."],
+    offline:true};
+}
+
+function esc(s){return String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+
+function render(r){
+  const v=(r.verdict||"").toLowerCase();
+  const cls = v.startsWith("scam")?"v-bad":v.startsWith("susp")?"v-warn":"v-safe";
+  const icon = cls==="v-bad"?"🚨":cls==="v-warn"?"⚠️":"✅";
+  const flags = (r.red_flags||[]).map(f=>`<li><b>${esc(f.flag)}</b><span>${esc(f.detail)}</span></li>`).join("");
+  const todo = (r.what_to_do||[]).map(x=>`<li>${esc(x)}</li>`).join("");
+  $("result").innerHTML = `
+    <div class="verdict ${cls}">
+      <div class="score">${esc(r.risk_score)}</div>
+      <div><h2>${icon} ${esc(r.verdict)}</h2><p>${esc(r.summary)}</p></div>
+    </div>
+    <div class="meta">
+      ${r.scam_type && r.scam_type!=="None"?`<span>Type: ${esc(r.scam_type)}</span>`:""}
+      ${r.impersonating && !/none|unknown/i.test(r.impersonating)?`<span>Pretending to be: ${esc(r.impersonating)}</span>`:""}
+      ${r.language && r.language!=="Unknown"?`<span>Language: ${esc(r.language)}</span>`:""}
+      <span>Risk score: ${esc(r.risk_score)}/100</span>
+    </div>
+    ${flags?`<div class="section"><h3>Red flags found</h3><ul class="flags">${flags}</ul></div>`:""}
+    ${todo?`<div class="section"><h3>What to do</h3><ol class="advice">${todo}</ol></div>`:""}
+    ${r.offline?`<p class="note">Quick check mode (AI analysis unavailable right now).</p>`:`<p class="note">Analysed by AI. Always double-check through the official app or website.</p>`}
+  `;
+}
+
+$("go").onclick = async ()=>{
+  const msg=$("msg").value.trim();
+  $("err").style.display="none";
+  if(!msg){ $("err").textContent="Paste a message first, or tap an example below."; $("err").style.display="block"; return; }
+  const btn=$("go"); btn.disabled=true; btn.textContent="Checking…";
+  const res=$("result"); res.style.display="block";
+  res.innerHTML=`<div class="loading"><div class="spin"></div>Analysing the message for scam signals…</div>`;
+  let r=null;
+  try{
+    const sample = await samplePromise;
+    if(sample){ r = await sample.json(PROMPT(msg), {modelTier:"quick"}); }
+  }catch(e){ r=null; }
+  if(!r || typeof r!=="object" || r.risk_score===undefined) r=heuristic(msg);
+  render(r);
+  btn.disabled=false; btn.textContent="Check this message";
+  res.scrollIntoView({behavior:"smooth",block:"start"});
+};
+</script>
+</body>
+</html>
